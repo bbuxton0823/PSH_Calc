@@ -1,6 +1,12 @@
-# PSH Rent Calculator - Excel Edition
+# 📊 PSH Rent Calculator - Excel Edition
 
-A user-friendly desktop application for calculating PSH (Permanent Supportive Housing) rent assistance that works entirely with Excel spreadsheets - no internet required!
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Mac%20%7C%20Linux-lightgrey)](https://github.com/bbuxton0823/psh-rent-calculator-excel)
+
+A professional desktop application for calculating PSH (Permanent Supportive Housing) rent assistance that works entirely with Excel spreadsheets - no internet required!
+
+**🌐 [One-Click Install Page](https://bbuxton0823.github.io/psh-rent-calculator-excel/)**
 
 ## 🎯 Perfect for Low-Tech Users
 
