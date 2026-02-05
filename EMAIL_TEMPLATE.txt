@@ -1,0 +1,52 @@
+Subject: PSH Rent Calculator - New Tool for Our Team
+
+Hi everyone,
+
+I wanted to share a new tool that will make PSH (Permanent Supportive Housing) rent calculations much easier and more accurate for our team.
+
+🎯 WHAT IT IS:
+A professional desktop application that calculates PSH rent assistance following HUD guidelines. It works completely offline with Excel - no internet required!
+
+✨ KEY BENEFITS:
+• Simple form interface (no complex spreadsheets to manage)
+• Automatic calculation validation and error checking  
+• Professional Excel reports ready for case files
+• Handles mixed families with automatic proration
+• Warns about FMR violations requiring supervisor approval
+• Works offline - no cloud storage or security concerns
+
+📥 HOW TO INSTALL:
+1. Download the attached ZIP file
+2. Extract all files to a folder (like Desktop/PSH-Calculator)  
+3. Double-click "setup.py" to install automatically
+4. Start using with "start_calculator.bat" (Windows) or "start_calculator.sh" (Mac/Linux)
+
+⚙️ REQUIREMENTS:
+• Python 3.6+ (free from python.org - check "Add Python to PATH" during install)
+• Excel, LibreOffice, or Google Sheets (to view the reports)
+• Works on Windows, Mac, and Linux
+
+📋 FIRST TIME SETUP:
+After installation, go to the "Settings" tab to update FMR (Fair Market Rent) rates for our local area. The app includes complete user documentation and help.
+
+🆘 NEED HELP?
+• Check the included USER_GUIDE.md for complete instructions
+• Installation issues? Follow INSTALLATION.md step-by-step
+• Questions about PSH calculations? The built-in Help tab explains everything
+
+This will save us significant time on PSH calculations and reduce errors. The Excel reports are professional and ready for supervisor review and case documentation.
+
+Let me know if you have any questions or need help getting it set up!
+
+Best regards,
+[Your Name]
+
+---
+ATTACHMENTS:
+• PSH_Rent_Calculator_[DATE].zip (complete application)
+• PSH_Calculator_Install.html (web instructions - optional)
+
+BACKUP SHARING OPTIONS:
+• Network drive: Copy entire extracted folder to shared location  
+• USB drive: Copy folder and share physically
+• Email issues? Contact IT for help with file sharing
