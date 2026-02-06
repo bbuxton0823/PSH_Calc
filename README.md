@@ -4,18 +4,22 @@ A simple, secure rent calculation tool for **Permanent Supportive Housing (PSH)*
 
 ---
 
-## One-Click Install
+## ▶️ [Launch Calculator](https://bbuxton0823.github.io/PSH_Calc/)
 
-**Download and open — that's it.**
+**Click the link above to open the calculator in your browser — no download or install needed.**
+
+👉 **https://bbuxton0823.github.io/PSH_Calc/**
+
+---
+
+## Want an Offline Copy?
 
 1. Click the green **Code** button above → **Download ZIP**
 2. Unzip the folder
 3. Double-click **`PSH_Rent_Calculator.html`**
-4. It opens in your browser. Start calculating.
+4. It opens in your browser. Works without internet.
 
-No Python. No command line. No admin rights. No internet required after download.
-
-> **Already have it?** Just double-click the `.html` file anytime. It works offline.
+> **Already downloaded?** Just double-click the `.html` file anytime. It works offline.
 
 ---
 
