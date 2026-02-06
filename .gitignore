@@ -47,4 +47,5 @@ start_calculator.sh
 quick_install.bat
 
 # Distribution files
-*.zip
+*.zip*.pyc
+__pycache__/

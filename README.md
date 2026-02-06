@@ -1,208 +1,136 @@
-# 📊 PSH Rent Calculator - Complete Suite
+# PSH Rent Calculator
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Mac%20%7C%20Linux-lightgrey)](https://github.com/bbuxton0823/PSH_Calc)
-
-Professional tools for calculating PSH (Permanent Supportive Housing) rent assistance - now with **two complete applications** to meet different workflow needs!
-
-**🌐 [One-Click Install Page](https://bbuxton0823.github.io/PSH_Calc/)**
+A simple, secure rent calculation tool for **Permanent Supportive Housing (PSH)** programs. Built for Housing Authority staff who need accurate HUD-compliant rent calculations without complex software installs.
 
 ---
 
-## 🎯 Choose Your Version
+## One-Click Install
 
-### 📱 **Web Calculator** (NEW!) - Modern & Mobile-Friendly
-Perfect for **quick calculations** and **professional PDF reports**
+**Download and open — that's it.**
 
-**✨ Key Features:**
-- **Beautiful web interface** - Works on desktop, tablet, and mobile
-- **Professional PDF reports** - Generate official-looking documents
-- **Admin panel** - Update FMR rates annually with built-in controls  
-- **Real-time updates** - FMR amounts update instantly as you select bedroom count
-- **No installation** - Just double-click and run in your browser
+1. Click the green **Code** button above → **Download ZIP**
+2. Unzip the folder
+3. Double-click **`PSH_Rent_Calculator.html`**
+4. It opens in your browser. Start calculating.
 
-**🚀 Quick Start:** 
-1. Download `PSH_Calculator_COMPLETE.zip`
-2. Extract and double-click `START_CALCULATOR.bat`
-3. Calculator opens in your browser - start calculating!
+No Python. No command line. No admin rights. No internet required after download.
 
-### 🖥️ **Desktop Calculator** - Traditional & Excel-Focused  
-Perfect for **detailed workflows** and **Excel integration**
-
-**✨ Key Features:**
-- **Desktop interface** - Familiar Windows-style forms
-- **Excel integration** - Generates professional Excel reports
-- **Works offline** - No internet connection required
-- **Mixed family support** - Handles prorated assistance calculations
-- **Smart validation** - Prevents calculation errors with warnings
-
-**🚀 Quick Start:**
-```bash
-pip install -r requirements.txt
-python psh_calculator.py
-```
+> **Already have it?** Just double-click the `.html` file anytime. It works offline.
 
 ---
 
-## 📱 Web Calculator Features
+## What It Does
 
-### 🎨 **Modern Interface**
-- Responsive gradient design that works on any device
-- Clear FMR year display (currently 2026)
-- Real-time FMR updates as you select bedroom count
-- Professional results formatting
+Calculates PSH rent assistance following HUD guidelines:
 
-### 📄 **Professional Reports** 
-- **PDF Reports** - Official-looking documents for filing
-- **Excel Export** - Formatted spreadsheets
-- **Quick Print** - Direct browser printing
+- **Gross Rent** (contract rent + utility allowance)
+- **HAP to Owner** (Housing Assistance Payment)
+- **Tenant Rent** (what the household pays)
+- **Utility Reimbursement** (when UA exceeds TTP)
+- **Mixed Family Proration** (automatic for households with ineligible members)
+- **FMR Compliance Check** (flags when gross rent exceeds Fair Market Rent)
 
-### ⚙️ **Admin Controls**
-Click the **⚙️ Admin** button to:
-- Update FMR rates for all bedroom counts (Studio through 4+)
-- Change the FMR year
-- Save changes instantly - no file editing required
+The calculator walks you through 4 simple steps:
 
-### 🚀 **Web Calculator Quick Start**
+| Step | What You Enter |
+|------|---------------|
+| 1. Household | Head of household name, voucher size, unit bedrooms |
+| 2. Finances | Rent to owner, utility allowance, TTP |
+| 3. Family | Eligible and ineligible member counts |
+| 4. Staff | Your name, date, supervisor (if needed) |
 
-1. **Enter Property Details:**
-   - Property address
-   - Number of bedrooms (Studio to 4+)
-   - Tenant rent payment
-
-2. **Calculate PSH:**
-   - Click "Calculate Project-Based Subsidy"  
-   - See instant results with breakdown
-
-3. **Generate Reports:**
-   - **PDF Report** (recommended) - Professional documents
-   - **Excel Export** - Formatted spreadsheets
-   - **Quick Print** - Browser printing
-
-### 🔧 **Web Files Structure**
-```
-Web Calculator/
-├── START_CALCULATOR.bat          # Smart launcher (tries PDF first)
-├── psh_calculator_web_pdf.py     # Full version with PDF support
-├── psh_calculator_web.py         # Web-only backup version
-├── PSH_Calculator_COMPLETE.zip   # Ready-to-distribute package
-└── README.txt                    # User instructions
-```
+Results display instantly with a printable summary.
 
 ---
 
-## 🖥️ Desktop Calculator Features  
+## Security & Privacy
 
-### 🎯 **Perfect for Detailed Workflows**
-- **Household Tab** - Complete household information entry
-- **Financial Tab** - Detailed rent and utility calculations  
-- **Family Tab** - Mixed family composition handling
-- **Settings Tab** - Customizable FMR rates for your area
+**Your data never leaves your computer.**
 
-### 📊 **Excel Integration**
-- Professional Excel reports with formatting
-- Print-ready output for official documentation
-- Automatic calculation validation
-- Smart warnings for FMR violations
+- Runs 100% locally in your browser — no servers, no cloud, no internet connection needed
+- No data is stored, transmitted, or logged anywhere
+- No cookies, no tracking, no analytics
+- No login required
+- When you close the tab, the data is gone
+- Safe to use on government networks and air-gapped systems
 
-### 💰 **Advanced Calculations**
-- **HAP to Owner** calculations
-- **Mixed family** prorated assistance  
-- **Utility allowance** integration
-- **Total Tenant Payment (TTP)** handling
-
-### 🚀 **Desktop Calculator Usage**
-
-1. **Installation:**
-   ```bash
-   # Install dependencies
-   pip install -r requirements.txt
-   
-   # Run application
-   python psh_calculator.py
-   ```
-
-2. **First Time Setup:**
-   - Open Settings tab to review FMR rates
-   - Update FMR rates for your local area
-   - Save settings for future use
-
-3. **Basic Workflow:**
-   - **Household Tab** - Enter household info
-   - **Financial Tab** - Enter rent/utility details
-   - **Family Tab** - Enter family composition
-   - **Calculate** - Generate results
-   - **Export** - Save Excel report
-
-### 🔧 **Desktop Files Structure**
-```
-Desktop Calculator/
-├── psh_calculator.py             # Main desktop application
-├── requirements.txt              # Python dependencies  
-├── setup.py                      # Installation helper
-├── run_calculator.py/.bat/.sh    # Platform launchers
-├── USER_GUIDE.md                 # Detailed user manual
-└── index.html                    # Web installer page
-```
+The entire application is a single HTML file you can inspect yourself. There is no hidden code, no external data calls, and no background processes.
 
 ---
 
-## 📋 System Requirements
+## Printing & Filing
 
-### Web Calculator
-- **Python 3.6+** (auto-prompted if missing)
-- **Web Browser** (any modern browser)
-- **Optional**: `reportlab`, `openpyxl` (auto-installed)
+Click **Print** on the results page to generate a clean, printable calculation sheet.
 
-### Desktop Calculator  
-- **Python 3.6+**
-- **tkinter** (usually included with Python)
-- **openpyxl** (for Excel export)
+- Headers, navigation, and buttons are automatically hidden in print
+- Formatted for standard 8.5" x 11" paper
+- Suitable for filing in tenant records
+- **Copy to Clipboard** button also available for pasting into emails or case notes
 
 ---
 
-## 🎯 Which Version Should I Use?
+## Admin: Updating FMR Rates
 
-### Choose **Web Calculator** if you want:
-✅ **Quick calculations** with beautiful interface  
-✅ **Professional PDF reports** for filing  
-✅ **Mobile/tablet compatibility**  
-✅ **No installation hassles** - just download and run  
-✅ **Modern, responsive design**
+When HUD publishes new Fair Market Rent rates each year:
 
-### Choose **Desktop Calculator** if you want:
-✅ **Detailed workflow management**  
-✅ **Excel-native reports** and integration  
-✅ **Mixed family** prorated calculations  
-✅ **Traditional desktop interface**  
-✅ **Offline operation** (no internet required)
+1. Click **FMR Settings** (top-right corner of the calculator)
+2. Click **Edit** on any bedroom row
+3. Update the **Payment Standard** and **FMR** values
+4. Click **Save**
+5. Changes take effect immediately for all calculations
 
-### Or Use Both!
-Many organizations find value in both:
-- **Web version** for quick calculations and client meetings
-- **Desktop version** for detailed case management and record-keeping
+To reset to the built-in 2025 defaults, click **Reset to 2025 Defaults**.
+
+> **Note:** FMR changes are session-only. To make permanent updates, edit the `DEFAULT_FMR` array at the top of the HTML file (any text editor works — the values are clearly labeled).
 
 ---
 
-## 📞 Support
+## Files in This Repo
 
-For questions, issues, or customizations:
-- **Email**: monday@aimagery.com
-- **Issues**: [GitHub Issues](https://github.com/bbuxton0823/PSH_Calc/issues)
+| File | Purpose |
+|------|---------|
+| `PSH_Rent_Calculator.html` | **The calculator** — this is all you need |
+| `psh_rent_calculator.py` | Python source (reference implementation) |
+| `psh_rent_calculator.jsx` | React component source code |
+| `PSH_Rent_Calculation_Reference.xlsx` | Original Excel calculation worksheet |
+| `LICENSE` | MIT License |
 
----
-
-## 📝 License
-
-Created for housing assistance professionals. Free to use and modify.
-
-## 🚀 Contributing
-
-Pull requests welcome! These tools are designed to help housing assistance programs streamline their PSH calculations.
+**For most users, you only need `PSH_Rent_Calculator.html`.** The other files are source code for developers.
 
 ---
 
-**Made with ❤️ for housing assistance professionals**
+## Compatibility
 
-*Supporting both quick calculations and detailed case management workflows*
+Works in any modern browser:
+
+- ✅ Chrome, Edge, Firefox, Safari
+- ✅ Windows, Mac, Linux, Chromebook
+- ✅ Tablets and phones (responsive layout)
+- ✅ Works offline — no internet required
+- ✅ No software installation needed
+- ✅ No admin/IT permissions required
+
+---
+
+## Calculation Method
+
+All calculations follow HUD PSH rent determination rules:
+
+- **TTP Minimum:** $50 (per HUD guidelines)
+- **Gross Rent:** Contract Rent + Utility Allowance
+- **HAP:** Gross Rent − TTP
+- **Mixed Family Proration:** HAP × (Eligible Members ÷ Total Members)
+- **FMR Comparison:** Based on the lesser of voucher bedroom size or actual unit bedrooms
+- **Supervisor Approval:** Required when Gross Rent exceeds FMR
+
+The calculation engine matches the logic in the reference Excel worksheet (`PSH_Rent_Calculation_Reference.xlsx`).
+
+---
+
+## Questions or Issues
+
+Contact **Bycha Buxton** — bbuxton0823@github
+
+---
+
+*Built for Housing Authority staff who just need the math to be right.*

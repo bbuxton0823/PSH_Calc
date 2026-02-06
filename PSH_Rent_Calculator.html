@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSH Rent Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; }
+  input, select, button { font-family: inherit; }
+  input:focus, select:focus { outline: 2px solid #1a73e8; border-color: #1a73e8; }
+  button:hover { opacity: 0.92; }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback } = React;
+
+/* ── Default FMR Data (2025 HUD Rates) ── */
+const DEFAULT_FMR = [
+  { bedrooms: 0, paymentStandard: 2734, fmr: 2485 },
+  { bedrooms: 1, paymentStandard: 3275, fmr: 2977 },
+  { bedrooms: 2, paymentStandard: 3964, fmr: 3604 },
+  { bedrooms: 3, paymentStandard: 5064, fmr: 4604 },
+  { bedrooms: 4, paymentStandard: 5249, fmr: 4772 },
+  { bedrooms: 5, paymentStandard: 0, fmr: 0 },
+];
+
+/* ── Calculation Engine ── */
+function calculate(inputs, fmrTable) {
+  const rent = Number(inputs.rentToOwner) || 0;
+  const ua = Number(inputs.utilityAllowance) || 0;
+  const ttp = Math.max(Number(inputs.ttp) || 0, 50);
+  const voucherSize = Number(inputs.voucherSize) || 0;
+  const brLeased = Number(inputs.brLeased) || 0;
+  const eligible = Number(inputs.numEligible) || 1;
+  const ineligible = Number(inputs.numIneligible) || 0;
+
+  const grossRent = rent + ua;
+  const fmrBedroom = Math.min(voucherSize, brLeased);
+  const fmrRow = fmrTable.find(r => r.bedrooms === fmrBedroom);
+  const fmr = fmrRow ? fmrRow.fmr : 0;
+  const lowerFmrOrGr = Math.min(fmr, grossRent);
+  const amountAboveFmr = Math.max(0, grossRent - fmr);
+  const totalHap = grossRent - ttp;
+  const totalFamilyShare = ttp;
+  const hapToOwner = Math.min(rent, totalHap);
+  const tenantRent = Math.max(0, rent - totalHap);
+  const utilityReimbursement = Math.max(0, ua - ttp);
+  const totalMembers = eligible + ineligible;
+  const isMixedFamily = ineligible > 0;
+  const proratePct = totalMembers > 0 ? eligible / totalMembers : 1;
+  const normalHap = hapToOwner;
+  const proratedHap = isMixedFamily ? Math.floor(proratePct * normalHap) : normalHap;
+  const mixedFamilyRent = isMixedFamily ? Math.floor(rent - proratedHap) : tenantRent;
+
+  return { grossRent, fmr, fmrBedroom, lowerFmrOrGr, amountAboveFmr, ttp, totalHap, totalFamilyShare, hapToOwner, tenantRent, utilityReimbursement, normalHap, totalMembers, isMixedFamily, proratePct, proratedHap, mixedFamilyRent };
+}
+
+const fmt = n => "$" + Math.round(Number(n) || 0).toLocaleString();
+
+/* ── Progress Bar ── */
+function ProgressBar({ currentStep, steps }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 32px", background: "#fff", borderBottom: "1px solid #e5e7eb" }}>
+      {steps.map((s, i) => {
+        const done = i < currentStep, cur = i === currentStep, fut = i > currentStep;
+        return (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0, background: done ? "#0d7a3f" : cur ? "#1a73e8" : "#e5e7eb", color: fut ? "#9ca3af" : "#fff" }}>
+              {done ? "✓" : i + 1}
+            </div>
+            <span style={{ fontSize: 13, fontWeight: cur ? 700 : 400, color: done ? "#0d7a3f" : cur ? "#1a73e8" : "#9ca3af", whiteSpace: "nowrap" }}>{s}</span>
+            {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: done ? "#0d7a3f" : "#e5e7eb", marginLeft: 8 }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Field ── */
+function Field({ label, hint, children }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <label style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#1f2937", marginBottom: 4 }}>{label}</label>
+      {hint && <p style={{ fontSize: 12, color: "#6b7280", fontStyle: "italic", margin: "0 0 6px 0" }}>{hint}</p>}
+      {children}
+    </div>
+  );
+}
+
+const inputStyle = { width: "100%", maxWidth: 320, padding: "10px 12px", fontSize: 15, border: "1px solid #d1d5db", borderRadius: 6, outline: "none", boxSizing: "border-box" };
+
+/* ── Alert Box ── */
+function AlertBox({ type, children }) {
+  const m = { error: { bg: "#fef2f2", bd: "#fca5a5", c: "#991b1b", i: "⚠" }, warning: { bg: "#fffbeb", bd: "#fcd34d", c: "#92400e", i: "⚠" }, success: { bg: "#f0fdf4", bd: "#86efac", c: "#166534", i: "✓" }, info: { bg: "#eff6ff", bd: "#93c5fd", c: "#1e40af", i: "ℹ" } };
+  const s = m[type] || m.info;
+  return <div style={{ padding: "12px 16px", background: s.bg, border: "1px solid " + s.bd, borderRadius: 8, color: s.c, fontSize: 14, lineHeight: 1.5, marginTop: 12 }}><span style={{ marginRight: 8 }}>{s.i}</span>{children}</div>;
+}
+
+/* ── Nav Buttons ── */
+function NavButtons({ onBack, onNext, nextLabel, nextColor }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 24, borderTop: "1px solid #e5e7eb", marginTop: 24 }}>
+      {onBack ? <button onClick={onBack} style={{ padding: "10px 20px", fontSize: 14, background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>← Back</button> : <div />}
+      <button onClick={onNext} style={{ padding: "12px 28px", fontSize: 15, fontWeight: 700, background: nextColor || "#1a73e8", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>{nextLabel || "Next →"}</button>
+    </div>
+  );
+}
+
+/* ── Step 1: Household ── */
+function Step1({ data, onChange, onNext, fmrTable }) {
+  const [error, setError] = useState("");
+  const fmrBr = Math.min(Number(data.voucherSize) || 0, Number(data.brLeased) || 0);
+  const fmrRow = fmrTable.find(r => r.bedrooms === fmrBr);
+  const fmrAmt = fmrRow ? fmrRow.fmr : 0;
+
+  const go = () => {
+    if (!data.headOfHousehold.trim()) { setError("Please enter the Head of Household name."); return; }
+    setError(""); onNext();
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1a73e8", margin: "0 0 20px 0" }}>Household Information</h2>
+      <Field label="Head of Household Name" hint="Full legal name (required)">
+        <input style={{ ...inputStyle, borderColor: error ? "#ef4444" : "#d1d5db" }} value={data.headOfHousehold} onChange={e => onChange("headOfHousehold", e.target.value)} placeholder="Enter name..." autoFocus />
+      </Field>
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <Field label="Voucher Bedroom Size" hint="Bedroom size authorized on the housing voucher">
+          <select style={{ ...inputStyle, maxWidth: 140 }} value={data.voucherSize} onChange={e => onChange("voucherSize", e.target.value)}>
+            {[0,1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </Field>
+        <Field label="Actual Bedrooms in Unit" hint="Number of bedrooms in the leased unit">
+          <select style={{ ...inputStyle, maxWidth: 140 }} value={data.brLeased} onChange={e => onChange("brLeased", e.target.value)}>
+            {[0,1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </Field>
+      </div>
+      {fmrAmt > 0 && <AlertBox type="info">FMR will be based on <strong>{fmrBr}-bedroom</strong> rate: <strong>{fmt(fmrAmt)}</strong></AlertBox>}
+      {error && <AlertBox type="error">{error}</AlertBox>}
+      <NavButtons onNext={go} />
+    </div>
+  );
+}
+
+/* ── Step 2: Finances ── */
+function Step2({ data, onChange, onBack, onNext, fmrTable }) {
+  const [error, setError] = useState("");
+  const rent = Number(data.rentToOwner) || 0, ua = Number(data.utilityAllowance) || 0, ttp = Number(data.ttp) || 0;
+  const grossRent = rent + ua;
+  const fmrBr = Math.min(Number(data.voucherSize) || 0, Number(data.brLeased) || 0);
+  const fmrRow = fmrTable.find(r => r.bedrooms === fmrBr);
+  const fmr = fmrRow ? fmrRow.fmr : 0;
+  const aboveFmr = grossRent > fmr && fmr > 0;
+
+  const go = () => {
+    if (rent <= 0) { setError("Rent to Owner must be greater than $0."); return; }
+    if (ua < 0) { setError("Utility Allowance cannot be negative."); return; }
+    if (isNaN(rent) || isNaN(ua) || isNaN(ttp)) { setError("Please enter valid numbers."); return; }
+    setError(""); if (ttp < 50) onChange("ttp", "50"); onNext();
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1a73e8", margin: "0 0 20px 0" }}>Financial Information</h2>
+      <Field label="Rent to Owner ($)" hint="Monthly contract rent paid to the property owner">
+        <input style={inputStyle} type="number" min="0" value={data.rentToOwner} onChange={e => onChange("rentToOwner", e.target.value)} autoFocus />
+      </Field>
+      <Field label="Utility Allowance ($)" hint="Monthly allowance for tenant-paid utilities per PHA schedule">
+        <input style={inputStyle} type="number" min="0" value={data.utilityAllowance} onChange={e => onChange("utilityAllowance", e.target.value)} />
+      </Field>
+      <Field label="Total Tenant Payment / TTP ($)" hint="Household's share of rent based on income — minimum $50 for PSH">
+        <input style={inputStyle} type="number" min="0" value={data.ttp} onChange={e => onChange("ttp", e.target.value)} />
+      </Field>
+      {ttp < 50 && ttp >= 0 && <AlertBox type="warning">TTP minimum is $50 per HUD rules. Value will be set to $50 when you proceed.</AlertBox>}
+      <div style={{ background: "#f8fafc", borderRadius: 8, padding: 16, marginTop: 16, border: "1px solid #e2e8f0" }}>
+        <div style={{ fontSize: 13, color: "#64748b" }}>Gross Rent (Rent + UA)</div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: "#1a73e8" }}>{fmt(grossRent)}</div>
+        {fmr > 0 && <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>FMR for {fmrBr}-BR: {fmt(fmr)}</div>}
+      </div>
+      {aboveFmr && <AlertBox type="error"><strong>Gross Rent exceeds FMR by {fmt(grossRent - fmr)}</strong> — Supervisor approval will be required.</AlertBox>}
+      {error && <AlertBox type="error">{error}</AlertBox>}
+      <NavButtons onBack={onBack} onNext={go} />
+    </div>
+  );
+}
+
+/* ── Step 3: Family ── */
+function Step3({ data, onChange, onBack, onNext }) {
+  const [error, setError] = useState("");
+  const eligible = Number(data.numEligible) || 0, ineligible = Number(data.numIneligible) || 0, total = eligible + ineligible;
+
+  const go = () => { if (eligible < 1) { setError("Number Eligible must be at least 1."); return; } setError(""); onNext(); };
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1a73e8", margin: "0 0 20px 0" }}>Family Composition</h2>
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <Field label="Number Eligible" hint="Family members with eligible immigration status">
+          <input style={{ ...inputStyle, maxWidth: 120 }} type="number" min="1" max="20" value={data.numEligible} onChange={e => onChange("numEligible", e.target.value)} autoFocus />
+        </Field>
+        <Field label="Number Ineligible" hint="Members without eligible immigration status">
+          <input style={{ ...inputStyle, maxWidth: 120 }} type="number" min="0" max="20" value={data.numIneligible} onChange={e => onChange("numIneligible", e.target.value)} />
+        </Field>
+      </div>
+      <div style={{ background: "#f8fafc", borderRadius: 8, padding: 16, border: "1px solid #e2e8f0", marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: "#64748b" }}>Total Family Members</div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: "#1a73e8" }}>{total}</div>
+      </div>
+      {ineligible > 0 ? <AlertBox type="warning"><strong>MIXED FAMILY DETECTED</strong><br/>Proration: {eligible}/{total} = {total > 0 ? ((eligible/total)*100).toFixed(1) : 0}% of HAP. Assistance will be reduced proportionally.</AlertBox> : total > 0 && <AlertBox type="success">All family members are eligible. No proration needed.</AlertBox>}
+      {error && <AlertBox type="error">{error}</AlertBox>}
+      <NavButtons onBack={onBack} onNext={go} />
+    </div>
+  );
+}
+
+/* ── Step 4: Staff ── */
+function Step4({ data, onChange, onBack, onCalculate, fmrTable }) {
+  const [error, setError] = useState("");
+  const grossRent = (Number(data.rentToOwner) || 0) + (Number(data.utilityAllowance) || 0);
+  const fmrBr = Math.min(Number(data.voucherSize) || 0, Number(data.brLeased) || 0);
+  const fmrRow = fmrTable.find(r => r.bedrooms === fmrBr);
+  const fmr = fmrRow ? fmrRow.fmr : 0;
+  const needsSup = grossRent > fmr && fmr > 0;
+
+  const go = () => {
+    if (!data.haStaff.trim()) { setError("Please enter HA Staff Name."); return; }
+    if (needsSup && !data.supervisorName.trim()) { setError("Supervisor Name is required (Gross Rent exceeds FMR)."); return; }
+    setError(""); onCalculate();
+  };
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1a73e8", margin: "0 0 20px 0" }}>Staff & Sign-off</h2>
+      <Field label="HA Staff Name" hint="Required"><input style={inputStyle} value={data.haStaff} onChange={e => onChange("haStaff", e.target.value)} placeholder="Staff name..." autoFocus /></Field>
+      <Field label="Calculation Date"><input style={{ ...inputStyle, maxWidth: 180 }} type="date" value={data.calcDate} onChange={e => onChange("calcDate", e.target.value)} /></Field>
+      {needsSup ? (<>
+        <AlertBox type="error"><strong>SUPERVISOR APPROVAL REQUIRED</strong> — Gross rent exceeds Fair Market Rent.</AlertBox>
+        <div style={{ marginTop: 16 }}>
+          <Field label="Supervisor Name" hint="Required for FMR override"><input style={inputStyle} value={data.supervisorName} onChange={e => onChange("supervisorName", e.target.value)} placeholder="Supervisor name..." /></Field>
+          <Field label="Supervisor Date"><input style={{ ...inputStyle, maxWidth: 180 }} type="date" value={data.supervisorDate} onChange={e => onChange("supervisorDate", e.target.value)} /></Field>
+        </div>
+      </>) : <AlertBox type="success">Rent is within FMR limits. No supervisor approval needed.</AlertBox>}
+      {error && <AlertBox type="error">{error}</AlertBox>}
+      <NavButtons onBack={onBack} onNext={go} nextLabel="Calculate" nextColor="#0d7a3f" />
+    </div>
+  );
+}
+
+/* ── Step 5: Dashboard Results ── */
+function Step5({ data, results, onNewCalc }) {
+  const r = results;
+
+  const copyText = () => {
+    const lines = [
+      "=".repeat(60), "PSH RENT CALCULATION SUMMARY", "=".repeat(60), "",
+      "Head of Household: " + data.headOfHousehold,
+      "Date: " + data.calcDate + "   Staff: " + data.haStaff,
+      data.supervisorName ? "Supervisor: " + data.supervisorName : "",
+      "", "-".repeat(60),
+      "1.  Rent to Owner:           " + fmt(data.rentToOwner),
+      "2.  Utility Allowance:       " + fmt(data.utilityAllowance),
+      "3.  Gross Rent:              " + fmt(r.grossRent),
+      "4.  2025 FMR:                " + fmt(r.fmr),
+      "5.  Lower of FMR or GR:      " + fmt(r.lowerFmrOrGr),
+      "6.  Amount Above FMR:        " + fmt(r.amountAboveFmr) + (r.amountAboveFmr > 0 ? " [SUPERVISOR REQUIRED]" : ""),
+      "7.  TTP ($50 Minimum):       " + fmt(r.ttp),
+      "8.  Total HAP:               " + fmt(r.totalHap),
+      "9.  Total Family Share:       " + fmt(r.totalFamilyShare),
+      "10. HAP to Owner:            " + fmt(r.hapToOwner),
+      "11. Tenant Rent:             " + fmt(r.tenantRent),
+      "12. Utility Reimbursement:   " + fmt(r.utilityReimbursement),
+      "", "--- PRORATED ASSISTANCE ---",
+      "13. Normal HAP:              " + fmt(r.normalHap),
+      "14. Number Eligible:         " + data.numEligible,
+      "15. Number Ineligible:       " + data.numIneligible,
+      "16. Total Family Members:    " + r.totalMembers,
+      "17. Prorate %:               " + (r.proratePct * 100).toFixed(2) + "%",
+      "18. Prorated HAP:            " + fmt(r.proratedHap),
+      "19. Mixed Family Rent:       " + fmt(r.mixedFamilyRent),
+      "=".repeat(60),
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(lines).then(() => alert("Copied to clipboard!"));
+  };
+
+  const printPage = () => window.print();
+
+  const rows = [
+    { n: "1", label: "Rent to Owner", val: fmt(data.rentToOwner) },
+    { n: "2", label: "Utility Allowance", val: fmt(data.utilityAllowance) },
+    { n: "3", label: "Gross Rent", val: fmt(r.grossRent) },
+    { n: "4", label: "2025 FMR", val: fmt(r.fmr) },
+    { n: "5", label: "Lower of FMR or GR", val: fmt(r.lowerFmrOrGr) },
+    { n: "6", label: "Amount Above FMR", val: fmt(r.amountAboveFmr), hl: r.amountAboveFmr > 0 ? "red" : null },
+    { n: "7", label: "TTP ($50 Minimum)", val: fmt(r.ttp) },
+    { n: "8", label: "Total HAP", val: fmt(r.totalHap) },
+    { n: "9", label: "Total Family Share", val: fmt(r.totalFamilyShare) },
+    { n: "10", label: "HAP to Owner", val: fmt(r.hapToOwner), hl: "green" },
+    { n: "11", label: "Tenant Rent", val: fmt(r.tenantRent) },
+    { n: "12", label: "Utility Reimbursement", val: fmt(r.utilityReimbursement) },
+    { n: "", label: "PRORATED ASSISTANCE", val: "", section: true },
+    { n: "13", label: "Normal HAP", val: fmt(r.normalHap) },
+    { n: "14", label: "Number Eligible", val: data.numEligible },
+    { n: "15", label: "Number Ineligible", val: data.numIneligible },
+    { n: "16", label: "Total Family Members", val: r.totalMembers },
+    { n: "17", label: "Prorate %", val: (r.proratePct * 100).toFixed(2) + "%" },
+    { n: "18", label: "Prorated HAP", val: fmt(r.proratedHap) },
+    { n: "19", label: "Mixed Family Rent", val: fmt(r.mixedFamilyRent) },
+  ];
+
+  const card = bg => ({ flex: "1 1 200px", background: bg, borderRadius: 10, padding: "20px 16px", textAlign: "center", color: "#fff", minWidth: 160 });
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, color: "#1a73e8", margin: "0 0 16px 0" }}>Results — {data.headOfHousehold}</h2>
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <div style={card("#0d7a3f")}><div style={{ fontSize: 12, opacity: 0.9, letterSpacing: 0.5 }}>HAP TO OWNER</div><div style={{ fontSize: 32, fontWeight: 800, marginTop: 4 }}>{fmt(r.hapToOwner)}</div></div>
+        <div style={card("#1a73e8")}><div style={{ fontSize: 12, opacity: 0.9, letterSpacing: 0.5 }}>TENANT RENT</div><div style={{ fontSize: 32, fontWeight: 800, marginTop: 4 }}>{fmt(r.tenantRent)}</div></div>
+        <div style={card("#6366f1")}><div style={{ fontSize: 12, opacity: 0.9, letterSpacing: 0.5 }}>UTILITY REIMB.</div><div style={{ fontSize: 32, fontWeight: 800, marginTop: 4 }}>{fmt(r.utilityReimbursement)}</div></div>
+      </div>
+
+      {r.amountAboveFmr > 0 && <div style={{ background: "#dc2626", color: "#fff", padding: "12px 16px", borderRadius: 8, fontSize: 14, fontWeight: 700, marginBottom: 12 }}>⚠ ABOVE FMR BY {fmt(r.amountAboveFmr)} — SUPERVISOR APPROVAL REQUIRED</div>}
+      {r.isMixedFamily && <div style={{ background: "#fbbf24", color: "#78350f", padding: "12px 16px", borderRadius: 8, fontSize: 14, marginBottom: 12 }}><strong>MIXED FAMILY:</strong> Prorated HAP = {fmt(r.proratedHap)} ({(r.proratePct*100).toFixed(1)}%) | Mixed Family Rent = {fmt(r.mixedFamilyRent)}</div>}
+
+      <div style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "48px 1fr 120px", background: "#f1f5f9", padding: "8px 12px", fontWeight: 700, fontSize: 13, color: "#475569" }}>
+          <span>#</span><span>Item</span><span style={{ textAlign: "right" }}>Amount</span>
+        </div>
+        {rows.map((row, i) => row.section ? (
+          <div key={i} style={{ padding: "10px 12px", background: "#f8fafc", fontSize: 12, fontWeight: 700, color: "#64748b", letterSpacing: 0.5, borderTop: "2px solid #e2e8f0" }}>{row.label}</div>
+        ) : (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "48px 1fr 120px", padding: "8px 12px", fontSize: 14, background: row.hl === "green" ? "#f0fdf4" : row.hl === "red" ? "#fef2f2" : i % 2 === 0 ? "#fff" : "#f9fafb", borderTop: "1px solid #f1f5f9", color: row.hl === "red" ? "#dc2626" : row.hl === "green" ? "#166534" : "#1f2937", fontWeight: row.hl ? 700 : 400 }}>
+            <span style={{ color: "#9ca3af" }}>{row.n}</span><span>{row.label}</span><span style={{ textAlign: "right", fontWeight: 600 }}>{row.val}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: "#f8fafc", borderRadius: 8, padding: 12, fontSize: 13, color: "#64748b", marginBottom: 16 }}>
+        <strong>Staff:</strong> {data.haStaff} &nbsp;|&nbsp; <strong>Date:</strong> {data.calcDate}
+        {data.supervisorName && <> &nbsp;|&nbsp; <strong>Supervisor:</strong> {data.supervisorName}</>}
+      </div>
+
+      <div className="no-print" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button onClick={onNewCalc} style={{ padding: "10px 20px", fontSize: 14, background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>New Calculation</button>
+        <button onClick={copyText} style={{ padding: "10px 20px", fontSize: 14, background: "#1a73e8", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>Copy to Clipboard</button>
+        <button onClick={printPage} style={{ padding: "10px 20px", fontSize: 14, background: "#7c3aed", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>Print</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── FMR Settings Modal ── */
+function FMRModal({ fmrTable, onClose, onUpdateFMR }) {
+  const [editing, setEditing] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const startEdit = idx => { setEditing(idx); setEditValues({ ps: fmrTable[idx].paymentStandard, fmr: fmrTable[idx].fmr }); };
+  const saveEdit = idx => { const u = [...fmrTable]; u[idx] = { ...u[idx], paymentStandard: Number(editValues.ps) || 0, fmr: Number(editValues.fmr) || 0 }; onUpdateFMR(u); setEditing(null); };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+      <div style={{ background: "#fff", borderRadius: 12, width: "90%", maxWidth: 560, padding: 24, maxHeight: "80vh", overflow: "auto" }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: "#1a73e8", margin: "0 0 16px 0" }}>FMR & Payment Standard Management</h3>
+        <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>Click Edit on any row to update rates. Changes apply immediately.</p>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead><tr style={{ background: "#f1f5f9" }}><th style={{ padding: 8, textAlign: "left" }}>BR</th><th style={{ padding: 8, textAlign: "right" }}>Payment Standard</th><th style={{ padding: 8, textAlign: "right" }}>FMR</th><th style={{ padding: 8, width: 60 }}></th></tr></thead>
+          <tbody>{fmrTable.map((row, i) => (
+            <tr key={i} style={{ borderTop: "1px solid #e5e7eb" }}>
+              <td style={{ padding: 8 }}>{row.bedrooms}</td>
+              <td style={{ padding: 8, textAlign: "right" }}>{editing === i ? <input type="number" value={editValues.ps} onChange={e => setEditValues({...editValues, ps: e.target.value})} style={{ width: 100, padding: 4, textAlign: "right" }} /> : fmt(row.paymentStandard)}</td>
+              <td style={{ padding: 8, textAlign: "right" }}>{editing === i ? <input type="number" value={editValues.fmr} onChange={e => setEditValues({...editValues, fmr: e.target.value})} style={{ width: 100, padding: 4, textAlign: "right" }} /> : fmt(row.fmr)}</td>
+              <td style={{ padding: 8, textAlign: "center" }}>{editing === i ? <button onClick={() => saveEdit(i)} style={{ fontSize: 12, background: "#0d7a3f", color: "#fff", border: "none", borderRadius: 4, padding: "4px 8px", cursor: "pointer" }}>Save</button> : <button onClick={() => startEdit(i)} style={{ fontSize: 12, background: "#e5e7eb", border: "none", borderRadius: 4, padding: "4px 8px", cursor: "pointer" }}>Edit</button>}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+        <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "space-between" }}>
+          <button onClick={() => onUpdateFMR([...DEFAULT_FMR])} style={{ padding: "8px 16px", fontSize: 13, background: "#fbbf24", color: "#78350f", border: "none", borderRadius: 6, cursor: "pointer" }}>Reset to 2025 Defaults</button>
+          <button onClick={onClose} style={{ padding: "8px 20px", fontSize: 13, background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main App ── */
+function App() {
+  const [step, setStep] = useState(0);
+  const [showFMR, setShowFMR] = useState(false);
+  const [fmrTable, setFmrTable] = useState([...DEFAULT_FMR]);
+  const [results, setResults] = useState(null);
+  const today = new Date().toISOString().split("T")[0];
+
+  const [data, setData] = useState({
+    headOfHousehold: "", voucherSize: "0", brLeased: "0",
+    rentToOwner: "", utilityAllowance: "", ttp: "50",
+    numEligible: "1", numIneligible: "0",
+    haStaff: "", calcDate: today, supervisorName: "", supervisorDate: "",
+  });
+
+  const onChange = useCallback((field, value) => setData(prev => ({ ...prev, [field]: value })), []);
+
+  const handleCalc = () => { setResults(calculate(data, fmrTable)); setStep(4); };
+  const handleNew = () => {
+    if (!confirm("Clear all data and start a new calculation?")) return;
+    setData({ headOfHousehold: "", voucherSize: "0", brLeased: "0", rentToOwner: "", utilityAllowance: "", ttp: "50", numEligible: "1", numIneligible: "0", haStaff: "", calcDate: today, supervisorName: "", supervisorDate: "" });
+    setResults(null); setStep(0);
+  };
+
+  const stepNames = ["Household", "Finances", "Family", "Staff", "Results"];
+
+  return (
+    <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', background: "#f5f5f5", minHeight: "100vh" }}>
+      <div style={{ background: "#fff", padding: "16px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e5e7eb" }} className="no-print">
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1a73e8", margin: 0, letterSpacing: -0.5 }}>PSH RENT CALCULATOR</h1>
+          <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0 0 0" }}>Permanent Supportive Housing Rent Assistance</p>
+        </div>
+        <button onClick={() => setShowFMR(true)} style={{ padding: "8px 16px", fontSize: 13, background: "#1a73e8", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>FMR Settings</button>
+      </div>
+
+      <ProgressBar currentStep={step} steps={stepNames} />
+
+      <div style={{ maxWidth: 720, margin: "24px auto", background: "#fff", borderRadius: 12, padding: "28px 32px", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+        {step === 0 && <Step1 data={data} onChange={onChange} onNext={() => setStep(1)} fmrTable={fmrTable} />}
+        {step === 1 && <Step2 data={data} onChange={onChange} onBack={() => setStep(0)} onNext={() => setStep(2)} fmrTable={fmrTable} />}
+        {step === 2 && <Step3 data={data} onChange={onChange} onBack={() => setStep(1)} onNext={() => setStep(3)} />}
+        {step === 3 && <Step4 data={data} onChange={onChange} onBack={() => setStep(2)} onCalculate={handleCalc} fmrTable={fmrTable} />}
+        {step === 4 && results && <Step5 data={data} results={results} onNewCalc={handleNew} />}
+      </div>
+
+      {showFMR && <FMRModal fmrTable={fmrTable} onClose={() => setShowFMR(false)} onUpdateFMR={updated => setFmrTable(updated)} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
