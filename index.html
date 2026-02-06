@@ -426,7 +426,10 @@ function App() {
           <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1a73e8", margin: 0, letterSpacing: -0.5 }}>PSH RENT CALCULATOR</h1>
           <p style={{ fontSize: 12, color: "#6b7280", margin: "2px 0 0 0" }}>Permanent Supportive Housing Rent Assistance</p>
         </div>
-        <button onClick={() => setShowFMR(true)} style={{ padding: "8px 16px", fontSize: 13, background: "#1a73e8", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>FMR Settings</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <a href="https://github.com/bbuxton0823/PSH_Calc/archive/refs/heads/main.zip" style={{ padding: "8px 16px", fontSize: 13, background: "#0d7a3f", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>⬇ Download ZIP</a>
+          <button onClick={() => setShowFMR(true)} style={{ padding: "8px 16px", fontSize: 13, background: "#1a73e8", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>FMR Settings</button>
+        </div>
       </div>
 
       <ProgressBar currentStep={step} steps={stepNames} />
