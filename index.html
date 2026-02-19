@@ -14,8 +14,12 @@
   input:focus, select:focus { outline: 2px solid #1a73e8; border-color: #1a73e8; }
   button:hover { opacity: 0.92; }
   @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .no-print { display: none !important; }
-    body { background: #fff; }
+    body { background: #fff !important; margin: 0; padding: 0; }
+    #root { display: none !important; }
+    #print-sheet { display: block !important; position: static !important; }
+    @page { size: letter portrait; margin: 0.5in; }
   }
 </style>
 </head>
@@ -272,7 +276,7 @@ function Step5({ data, results, onNewCalc }) {
       "1.  Rent to Owner:           " + fmt(data.rentToOwner),
       "2.  Utility Allowance:       " + fmt(data.utilityAllowance),
       "3.  Gross Rent:              " + fmt(r.grossRent),
-      "4.  2025 FMR:                " + fmt(r.fmr),
+      "4.  2025 Payment Standard:   " + fmt(r.fmr),
       "5.  Lower of FMR or GR:      " + fmt(r.lowerFmrOrGr),
       "6.  Amount Above FMR:        " + fmt(r.amountAboveFmr) + (r.amountAboveFmr > 0 ? " [SUPERVISOR REQUIRED]" : ""),
       "7.  TTP ($50 Minimum):       " + fmt(r.ttp),
@@ -294,7 +298,122 @@ function Step5({ data, results, onNewCalc }) {
     navigator.clipboard.writeText(lines).then(() => alert("Copied to clipboard!"));
   };
 
-  const printPage = () => window.print();
+  const printPage = () => {
+    const existing = document.getElementById("print-sheet");
+    if (existing) existing.remove();
+
+    const dateStr = data.calcDate ? new Date(data.calcDate + "T12:00:00").toLocaleDateString("en-US") : "";
+    const supDateStr = data.supervisorDate ? new Date(data.supervisorDate + "T12:00:00").toLocaleDateString("en-US") : "";
+    const rawFmt = v => { const n = Math.round(Number(v) || 0); return n.toLocaleString(); };
+
+    const GRAY = "background:linear-gradient(to bottom,#b8b8b8,#d8d8d8,#c8c8c8);border:1px solid #888;";
+
+    // Value cell renderers
+    const grayBox  = val => `<div style="${GRAY}padding:2px 6px;text-align:right;width:100%;box-sizing:border-box;">${val}</div>`;
+    const greenBox = val => `<div style="background:#c6efce;border:1px solid #888;padding:2px 6px;text-align:right;width:100%;box-sizing:border-box;font-weight:bold;">${val}</div>`;
+    const redBox   = val => `<div style="background:#ff0000;border:1px solid #cc0000;padding:2px 6px;text-align:right;width:100%;box-sizing:border-box;color:#fff;font-weight:bold;">${val}</div>`;
+    const redText  = val => `<div style="text-align:right;padding:2px 6px;color:#cc0000;font-weight:bold;">${val}</div>`;
+    const plain    = val => `<div style="text-align:right;padding:2px 6px;">${val}</div>`;
+
+    // Row: number embedded in label, two columns only (label | value)
+    const row = (label, valueHtml, labelBold, extraCell) => `
+      <tr>
+        <td style="border:1px solid #333;padding:2px 8px;font-size:8.5pt;${labelBold ? "font-weight:bold;" : ""}">${label}</td>
+        <td style="border:1px solid #333;padding:0;font-size:8.5pt;width:90px;">${valueHtml}</td>
+        ${extraCell ? `<td style="border:none;padding:2px 6px;font-size:8pt;color:#333;white-space:nowrap;">${extraCell}</td>` : `<td style="border:none;"></td>`}
+      </tr>`;
+
+    const sectionRow = () => `
+      <tr>
+        <td colspan="3" style="border:1px solid #333;padding:3px 8px;font-size:8.5pt;font-weight:bold;background:#ffeb9c;">PRORATED ASSISTANCE</td>
+      </tr>`;
+
+    const sheet = document.createElement("div");
+    sheet.id = "print-sheet";
+    sheet.style.cssText = "display:none;position:fixed;top:0;left:0;width:100%;background:#fff;z-index:9999;padding:0;";
+    sheet.innerHTML = `
+      <style>
+        @page { size: letter portrait; margin: 0.65in 0.75in; }
+        @media print {
+          #print-sheet { display:block !important; position:static !important; padding:0 !important; }
+          body > #root { display:none !important; }
+        }
+        #print-sheet { font-family: Arial, sans-serif; font-size: 8.5pt; }
+        #print-sheet table { border-collapse: collapse; width: 100%; }
+      </style>
+
+      <!-- Title -->
+      <div style="font-size:13pt;font-weight:bold;margin-bottom:10px;">PSH RENT CALCULATION</div>
+
+      <!-- Header: HOH left, Voucher BR Size + # BR Leased stacked on right -->
+      <table style="margin-bottom:4px;">
+        <tr>
+          <td style="border:1px solid #333;padding:3px 8px;font-size:8.5pt;width:120px;">Head of Household:</td>
+          <td style="border:1px solid #333;padding:3px 8px;font-size:8.5pt;${GRAY}min-width:160px;">${data.headOfHousehold}</td>
+          <td style="border:none;width:16px;"></td>
+          <td style="border:1px solid #333;padding:0;font-size:8.5pt;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="padding:2px 6px;font-size:8.5pt;white-space:nowrap;">Voucher BR Size</td>
+                <td style="border-left:1px solid #333;${GRAY}padding:2px 6px;width:30px;text-align:center;font-size:8.5pt;">${data.voucherSize}</td>
+              </tr>
+              <tr>
+                <td style="border-top:1px solid #333;padding:2px 6px;font-size:8.5pt;white-space:nowrap;"># BR Leased</td>
+                <td style="border-top:1px solid #333;border-left:1px solid #333;${GRAY}padding:2px 6px;text-align:center;font-size:8.5pt;">${data.brLeased}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Main table - NO number column, number is part of label -->
+      <table>
+        ${row("1 RENT TO OWNER",         grayBox(rawFmt(data.rentToOwner)))}
+        ${row("2 UTILITY ALLOWANCE",     grayBox(rawFmt(data.utilityAllowance)))}
+        ${row("3 GROSS RENT",            plain(rawFmt(r.grossRent)))}
+        ${row("4 2025 FMR",              plain(rawFmt(r.fmr)))}
+        ${row("5 LOWER OF FMR OR GR",   plain(rawFmt(r.lowerFmrOrGr)))}
+        ${row("6 AMOUNT ABOVE FMR",     r.amountAboveFmr > 0 ? redBox(rawFmt(r.amountAboveFmr)) : plain("0"), false, r.amountAboveFmr > 0 ? "Red - See Supervisor" : "")}
+        ${row("7 TTP ($50 MINIMUM)",    grayBox(rawFmt(r.ttp)))}
+        ${row("8 TOTAL HAP",            plain(rawFmt(r.totalHap)))}
+        ${row("9 TOTAL FAMILY SHARE",   plain(rawFmt(r.totalFamilyShare)))}
+        ${row("10 HAP TO OWNER",        greenBox(rawFmt(r.hapToOwner)), true)}
+        ${row("11 TENANT RENT",         plain(rawFmt(r.tenantRent)))}
+        ${row("12 UTILITY REIMBURSEMENT", plain(rawFmt(r.utilityReimbursement)))}
+        ${sectionRow()}
+        ${row("13 NORMAL HAP",          plain(rawFmt(r.normalHap)), true)}
+        ${row("14 NUMBER ELIGIBLE",     grayBox(data.numEligible))}
+        ${row("15 NUMBER INELIGIBLE",   grayBox(data.numIneligible))}
+        ${row("16 TOTAL FAMILY MEMBERS",grayBox(r.totalMembers))}
+        ${row("17 PRORATE %",           plain((r.proratePct).toFixed(2)))}
+        ${row("18 PRORATED HAP",        plain(rawFmt(r.proratedHap)))}
+        ${row("19 MIXED FAMILY RENT",   r.isMixedFamily ? redText(rawFmt(r.mixedFamilyRent)) : plain(rawFmt(r.mixedFamilyRent)), true)}
+      </table>
+
+      <!-- Footer: HA STAFF row + SUPERVISOR row always shown -->
+      <table style="margin-top:14px;width:100%;">
+        <tr>
+          <td style="font-size:8.5pt;padding:2px 6px;width:75px;white-space:nowrap;">HA STAFF:</td>
+          <td style="${GRAY}border:1px solid #333;font-size:8.5pt;padding:3px 10px;min-width:150px;">${data.haStaff}</td>
+          <td style="width:24px;"></td>
+          <td style="font-size:8.5pt;padding:2px 6px;width:38px;">DATE:</td>
+          <td style="${GRAY}border:1px solid #333;font-size:8.5pt;padding:3px 10px;width:85px;text-align:center;">${dateStr}</td>
+        </tr>
+        <tr style="height:8px;"><td colspan="5"></td></tr>
+        <tr>
+          <td style="font-size:8.5pt;padding:2px 6px;white-space:nowrap;">SUPERVISOR:</td>
+          <td style="border-bottom:1px solid #333;font-size:8.5pt;padding:3px 10px;">${data.supervisorName || ""}</td>
+          <td></td>
+          <td style="font-size:8.5pt;padding:2px 6px;">DATE:</td>
+          <td style="border-bottom:1px solid #333;font-size:8.5pt;padding:3px 10px;text-align:center;">${data.supervisorDate ? supDateStr : ""}</td>
+        </tr>
+      </table>
+    `;
+
+    document.body.appendChild(sheet);
+    window.print();
+    setTimeout(() => { const s = document.getElementById("print-sheet"); if(s) s.remove(); }, 2000);
+  };
 
   const rows = [
     { n: "1", label: "Rent to Owner", val: fmt(data.rentToOwner) },
