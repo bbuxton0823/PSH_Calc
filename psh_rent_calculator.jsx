@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 
 // ─── Default FMR Data (2025 HUD Rates) ───────────────────────────────
 const DEFAULT_FMR = [
@@ -36,7 +36,8 @@ function calculate(inputs, fmrTable) {
   const amountAboveFmr = Math.max(0, grossRent - fmr);
 
   // Step 5-8: HAP calculations
-  const totalHap = grossRent - ttp;
+  // HAP can never be negative (HUD: if TTP >= gross rent, no assistance is paid)
+  const totalHap = Math.max(0, grossRent - ttp);
   const totalFamilyShare = ttp;
   const hapToOwner = Math.min(rent, totalHap);
   const tenantRent = Math.max(0, rent - totalHap);
@@ -49,11 +50,14 @@ function calculate(inputs, fmrTable) {
   const isMixedFamily = ineligible > 0;
   const proratePct = totalMembers > 0 ? eligible / totalMembers : 1;
   const normalHap = hapToOwner;
+  // Match the reference worksheet: prorated HAP rounds to the nearest dollar,
+  // Mixed Family Rent = ROUNDDOWN(rent - exact prorated HAP, 0).
+  const proratedHapExact = proratePct * normalHap;
   const proratedHap = isMixedFamily
-    ? Math.floor(proratePct * normalHap)
+    ? Math.round(proratedHapExact)
     : normalHap;
   const mixedFamilyRent = isMixedFamily
-    ? Math.floor(rent - proratedHap)
+    ? Math.floor(Math.round((rent - proratedHapExact) * 100) / 100)
     : tenantRent;
 
   return {
@@ -400,7 +404,7 @@ function Step2({ data, onChange, onBack, onNext, fmrTable }) {
   );
   const fmrRow = fmrTable.find((r) => r.bedrooms === fmrBr);
   const fmr = fmrRow ? fmrRow.fmr : 0;
-  const aboveFmr = grossRent > fmr && fmr > 0;
+  const aboveFmr = grossRent > fmr;
 
   const handleNext = () => {
     if (rent <= 0) {
@@ -631,7 +635,7 @@ function Step4({ data, onChange, onBack, onCalculate, fmrTable }) {
   );
   const fmrRow = fmrTable.find((r) => r.bedrooms === fmrBr);
   const fmr = fmrRow ? fmrRow.fmr : 0;
-  const needsSupervisor = grossRent > fmr && fmr > 0;
+  const needsSupervisor = grossRent > fmr;
 
   const handleCalc = () => {
     if (!data.haStaff.trim()) {
@@ -746,7 +750,7 @@ function Step5({ data, results, onNewCalc }) {
       `6.  Amount Above FMR:        ${fmt(r.amountAboveFmr)}${r.amountAboveFmr > 0 ? " [SUPERVISOR REQUIRED]" : ""}`,
       `7.  TTP ($50 Minimum):       ${fmt(r.ttp)}`,
       `8.  Total HAP:               ${fmt(r.totalHap)}`,
-      `9.  Total Family Share:       ${fmt(r.totalFamilyShare)}`,
+      `9.  Total Family Share:      ${fmt(r.totalFamilyShare)}`,
       `10. HAP to Owner:            ${fmt(r.hapToOwner)}`,
       `11. Tenant Rent:             ${fmt(r.tenantRent)}`,
       `12. Utility Reimbursement:   ${fmt(r.utilityReimbursement)}`,

@@ -16,7 +16,7 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 import csv
 from datetime import datetime
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 import json
 import os
 
@@ -141,11 +141,15 @@ class RentCalculationEngine:
             bedroom_for_fmr = min(voucher_size, br_leased)
             fmr = Decimal(str(self.fmr_db.get_fmr(bedroom_for_fmr)))
 
+            # Step 3: LOWER OF FMR OR GROSS RENT
+            lower_fmr_or_gr = min(gross_rent, fmr)
+
             # Step 4: AMOUNT ABOVE FMR
             amount_above_fmr = max(Decimal(0), gross_rent - fmr)
 
             # Step 5-8: Basic HAP calculations
-            total_hap = gross_rent - ttp
+            # HAP can never be negative (HUD: if TTP >= gross rent, no assistance is paid)
+            total_hap = max(Decimal(0), gross_rent - ttp)
             total_family_share = ttp
             hap_to_owner = min(rent_to_owner, total_hap)
             tenant_rent = max(Decimal(0), rent_to_owner - total_hap)
@@ -158,9 +162,13 @@ class RentCalculationEngine:
             is_mixed_family = num_ineligible > 0
 
             if is_mixed_family:
+                # Match the reference worksheet: prorated HAP rounds to the
+                # nearest dollar, Mixed Family Rent = ROUNDDOWN(rent - exact
+                # prorated HAP, 0).
                 prorate_pct = Decimal(num_eligible) / Decimal(total_family_members)
-                prorated_hap = (prorate_pct * hap_to_owner).quantize(Decimal('1'), rounding=ROUND_DOWN)
-                mixed_family_rent = (rent_to_owner - prorated_hap).quantize(Decimal('1'), rounding=ROUND_DOWN)
+                prorated_hap_exact = prorate_pct * hap_to_owner
+                prorated_hap = prorated_hap_exact.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+                mixed_family_rent = (rent_to_owner - prorated_hap_exact).quantize(Decimal('1'), rounding=ROUND_DOWN)
             else:
                 prorate_pct = Decimal(1)
                 prorated_hap = hap_to_owner
@@ -182,6 +190,7 @@ class RentCalculationEngine:
                 # Calculated values
                 "gross_rent": gross_rent,
                 "fmr": fmr,
+                "lower_fmr_or_gr": lower_fmr_or_gr,
                 "amount_above_fmr": amount_above_fmr,
                 "total_hap": total_hap,
                 "total_family_share": total_family_share,
@@ -536,7 +545,7 @@ class PSHRentCalculatorApp:
             ttp = float(self.ttp_var.get() or 50)
 
             gross_rent = rent + ua
-            self.gross_rent_label.config(text=f"${gross_rent:,}")
+            self.gross_rent_label.config(text=f"${gross_rent:,.0f}")
 
             # Get FMR for comparison
             v_size = int(self.voucher_var.get())
@@ -553,13 +562,13 @@ class PSHRentCalculatorApp:
                         font=("TkDefaultFont", 9),
                         bg=COLOR_WHITE, fg=COLOR_SECONDARY_GRAY).pack(anchor=tk.W, pady=(5, 3))
 
-                if gross_rent > fmr:
-                    diff = int(gross_rent - fmr)
-                    warning_label = tk.Label(self.fmr_comparison_frame,
-                                            text=f"⚠ Gross Rent exceeds FMR by ${diff:,} — Supervisor approval required",
-                                            font=("TkDefaultFont", 9), bg=COLOR_WARNING_RED,
-                                            fg=COLOR_WHITE, padx=8, pady=6, relief=tk.FLAT)
-                    warning_label.pack(anchor=tk.W, pady=(5, 0), fill=tk.X)
+            if gross_rent > fmr:
+                diff = int(gross_rent - fmr)
+                warning_label = tk.Label(self.fmr_comparison_frame,
+                                        text=f"⚠ Gross Rent exceeds FMR by ${diff:,} — Supervisor approval required",
+                                        font=("TkDefaultFont", 9), bg=COLOR_WARNING_RED,
+                                        fg=COLOR_WHITE, padx=8, pady=6, relief=tk.FLAT)
+                warning_label.pack(anchor=tk.W, pady=(5, 0), fill=tk.X)
 
             # TTP warning
             self.ttp_warning_label.pack_forget()
@@ -771,7 +780,7 @@ class PSHRentCalculatorApp:
             fmr_br = min(v_size, br)
             fmr = self.fmr_db.get_fmr(fmr_br)
 
-            if gross_rent > fmr and fmr > 0:
+            if gross_rent > fmr:
                 # Supervisor required
                 warning_frame = tk.Frame(self.approval_status_frame, bg=COLOR_WARNING_RED, relief=tk.FLAT)
                 warning_frame.pack(fill=tk.X, pady=10)
@@ -920,7 +929,7 @@ class PSHRentCalculatorApp:
             ("2", "Utility Allowance", f"${int(r['utility_allowance']):,}"),
             ("3", "Gross Rent", f"${int(r['gross_rent']):,}"),
             ("4", "2025 FMR", f"${int(r['fmr']):,}"),
-            ("5", "Lower of FMR or GR", f"${int(min(r['gross_rent'], r['fmr'])):,}"),
+            ("5", "Lower of FMR or GR", f"${int(r['lower_fmr_or_gr']):,}"),
             ("6", "Amount Above FMR", f"${int(r['amount_above_fmr']):,}", COLOR_WARNING_RED if r['amount_above_fmr'] > 0 else None),
             ("7", "TTP ($50 Minimum)", f"${int(r['ttp']):,}"),
             ("8", "Total HAP", f"${int(r['total_hap']):,}"),
@@ -985,7 +994,7 @@ class PSHRentCalculatorApp:
         info_frame = tk.Frame(self.results_container, bg=COLOR_LIGHT_GRAY, relief=tk.FLAT)
         info_frame.pack(fill=tk.X, padx=20, pady=20)
 
-        staff_text = f"HA Staff: {r['head_of_household']} ({self.staff_var.get()})  |  Date: {r['calculation_date']}"
+        staff_text = f"Head of Household: {r['head_of_household']}  |  HA Staff: {r['ha_staff']}  |  Date: {r['calculation_date']}"
         if r['supervisor_name']:
             staff_text += f"  |  Supervisor: {r['supervisor_name']}"
 
@@ -1058,6 +1067,8 @@ class PSHRentCalculatorApp:
             self.current_inputs["num_eligible"] = eligible
             self.current_inputs["num_ineligible"] = ineligible
 
+            # Refresh the supervisor-approval banner with current finances
+            self.update_approval_status()
             self.show_step(3)
         except ValueError:
             messagebox.showerror("Validation Error", "Please enter valid integer values")
@@ -1078,7 +1089,7 @@ class PSHRentCalculatorApp:
         fmr_br = min(v_size, br)
         fmr = self.fmr_db.get_fmr(fmr_br)
 
-        if gross_rent > fmr and fmr > 0:
+        if gross_rent > fmr:
             if not self.supervisor_var.get().strip():
                 messagebox.showerror("Validation Error",
                                    "Supervisor Name is required when Gross Rent exceeds FMR")

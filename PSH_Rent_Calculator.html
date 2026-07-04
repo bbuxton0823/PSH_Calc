@@ -55,7 +55,8 @@ function calculate(inputs, fmrTable) {
   const fmr = fmrRow ? fmrRow.fmr : 0;
   const lowerFmrOrGr = Math.min(fmr, grossRent);
   const amountAboveFmr = Math.max(0, grossRent - fmr);
-  const totalHap = grossRent - ttp;
+  // HAP can never be negative (HUD: if TTP >= gross rent, no assistance is paid)
+  const totalHap = Math.max(0, grossRent - ttp);
   const totalFamilyShare = ttp;
   const hapToOwner = Math.min(rent, totalHap);
   const tenantRent = Math.max(0, rent - totalHap);
@@ -64,8 +65,11 @@ function calculate(inputs, fmrTable) {
   const isMixedFamily = ineligible > 0;
   const proratePct = totalMembers > 0 ? eligible / totalMembers : 1;
   const normalHap = hapToOwner;
-  const proratedHap = isMixedFamily ? Math.floor(proratePct * normalHap) : normalHap;
-  const mixedFamilyRent = isMixedFamily ? Math.floor(rent - proratedHap) : tenantRent;
+  // Match the reference worksheet: prorated HAP rounds to the nearest dollar,
+  // Mixed Family Rent = ROUNDDOWN(rent - exact prorated HAP, 0).
+  const proratedHapExact = proratePct * normalHap;
+  const proratedHap = isMixedFamily ? Math.round(proratedHapExact) : normalHap;
+  const mixedFamilyRent = isMixedFamily ? Math.floor(Math.round((rent - proratedHapExact) * 100) / 100) : tenantRent;
 
   return { grossRent, fmr, fmrBedroom, lowerFmrOrGr, amountAboveFmr, ttp, totalHap, totalFamilyShare, hapToOwner, tenantRent, utilityReimbursement, normalHap, totalMembers, isMixedFamily, proratePct, proratedHap, mixedFamilyRent };
 }
@@ -167,7 +171,7 @@ function Step2({ data, onChange, onBack, onNext, fmrTable }) {
   const fmrBr = Math.min(Number(data.voucherSize) || 0, Number(data.brLeased) || 0);
   const fmrRow = fmrTable.find(r => r.bedrooms === fmrBr);
   const fmr = fmrRow ? fmrRow.fmr : 0;
-  const aboveFmr = grossRent > fmr && fmr > 0;
+  const aboveFmr = grossRent > fmr;
 
   const go = () => {
     if (rent <= 0) { setError("Rent to Owner must be greater than $0."); return; }
@@ -237,7 +241,7 @@ function Step4({ data, onChange, onBack, onCalculate, fmrTable }) {
   const fmrBr = Math.min(Number(data.voucherSize) || 0, Number(data.brLeased) || 0);
   const fmrRow = fmrTable.find(r => r.bedrooms === fmrBr);
   const fmr = fmrRow ? fmrRow.fmr : 0;
-  const needsSup = grossRent > fmr && fmr > 0;
+  const needsSup = grossRent > fmr;
 
   const go = () => {
     if (!data.haStaff.trim()) { setError("Please enter HA Staff Name."); return; }
@@ -277,12 +281,12 @@ function Step5({ data, results, onNewCalc }) {
       "1.  Rent to Owner:           " + fmt(data.rentToOwner),
       "2.  Utility Allowance:       " + fmt(data.utilityAllowance),
       "3.  Gross Rent:              " + fmt(r.grossRent),
-      "4.  2025 Payment Standard:   " + fmt(r.fmr),
+      "4.  2025 FMR:                " + fmt(r.fmr),
       "5.  Lower of FMR or GR:      " + fmt(r.lowerFmrOrGr),
       "6.  Amount Above FMR:        " + fmt(r.amountAboveFmr) + (r.amountAboveFmr > 0 ? " [SUPERVISOR REQUIRED]" : ""),
       "7.  TTP ($50 Minimum):       " + fmt(r.ttp),
       "8.  Total HAP:               " + fmt(r.totalHap),
-      "9.  Total Family Share:       " + fmt(r.totalFamilyShare),
+      "9.  Total Family Share:      " + fmt(r.totalFamilyShare),
       "10. HAP to Owner:            " + fmt(r.hapToOwner),
       "11. Tenant Rent:             " + fmt(r.tenantRent),
       "12. Utility Reimbursement:   " + fmt(r.utilityReimbursement),
