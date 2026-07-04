@@ -93,13 +93,17 @@ To reset to the built-in 2025 defaults, click **Reset to 2025 Defaults**.
 
 | File | Purpose |
 |------|---------|
-| `PSH_Rent_Calculator.html` | **The calculator** — this is all you need |
-| `psh_rent_calculator.py` | Python source (reference implementation) |
-| `psh_rent_calculator.jsx` | React component source code |
-| `PSH_Rent_Calculation_Reference.xlsx` | Original Excel calculation worksheet |
+| `PSH_Rent_Calculator.html` | **The calculator** — a single self-contained web page; this is all you need |
+| `index.html` | GitHub Pages entry point — just redirects to `PSH_Rent_Calculator.html` |
+| `psh_rent_calculator.jsx` | React component variant of the same calculator, for embedding in a React app |
+| `psh_rent_calculator.py` | Desktop (tkinter) variant of the same calculator — run with `python3 psh_rent_calculator.py` |
+| `PSH_Rent_Calculation_Reference.xlsx` | Original Excel worksheet the calculation rules come from (**ground truth**) |
+| `test_psh_calc.py` | Test suite — run with `python3 test_psh_calc.py` (no display or extra packages needed) |
 | `LICENSE` | MIT License |
 
 **For most users, you only need `PSH_Rent_Calculator.html`.** The other files are source code for developers.
+
+> **Developers:** all three implementations (HTML, JSX, Python) contain the same calculation engine and must stay in agreement. If you change the math in one, change it in all three and run `python3 test_psh_calc.py` — the expected values in that file are derived from the Excel reference worksheet.
 
 ---
 
@@ -122,12 +126,14 @@ All calculations follow HUD PSH rent determination rules:
 
 - **TTP Minimum:** $50 (per HUD guidelines)
 - **Gross Rent:** Contract Rent + Utility Allowance
-- **HAP:** Gross Rent − TTP
-- **Mixed Family Proration:** HAP × (Eligible Members ÷ Total Members)
+- **HAP:** Gross Rent − TTP, never below $0 (if TTP is at or above Gross Rent, no assistance is paid and the tenant owes the full rent)
+- **HAP to Owner:** The lesser of HAP or Contract Rent
+- **Utility Reimbursement:** Utility Allowance − TTP, when positive
+- **Mixed Family Proration:** HAP × (Eligible Members ÷ Total Members), rounded to the nearest dollar; Mixed Family Rent is Contract Rent minus the exact prorated HAP, rounded **down** (same as the Excel worksheet)
 - **FMR Comparison:** Based on the lesser of voucher bedroom size or actual unit bedrooms
-- **Supervisor Approval:** Required when Gross Rent exceeds FMR
+- **Supervisor Approval:** Required whenever Gross Rent exceeds the FMR on file (including when no FMR is configured for that bedroom size)
 
-The calculation engine matches the logic in the reference Excel worksheet (`PSH_Rent_Calculation_Reference.xlsx`).
+The calculation engine matches the logic in the reference Excel worksheet (`PSH_Rent_Calculation_Reference.xlsx`) and is verified by `test_psh_calc.py`.
 
 ---
 
