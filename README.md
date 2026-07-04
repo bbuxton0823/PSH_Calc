@@ -12,14 +12,17 @@ A simple, secure rent calculation tool for **Permanent Supportive Housing (PSH)*
 
 ---
 
-## Want an Offline Copy?
+## Want a Local Copy?
 
 1. Click the green **Code** button above → **Download ZIP**
 2. Unzip the folder
 3. Double-click **`PSH_Rent_Calculator.html`**
-4. It opens in your browser. Works without internet.
+4. It opens in your browser.
 
-> **Already downloaded?** Just double-click the `.html` file anytime. It works offline.
+> **Note:** the page loads the standard React and Babel libraries from a
+> public CDN (cdnjs.cloudflare.com), so an internet connection is needed to
+> *open* the calculator. Your case data is never sent anywhere — the network
+> is only used to download those code libraries.
 
 ---
 
@@ -49,16 +52,15 @@ Results display instantly with a printable summary.
 
 ## Security & Privacy
 
-**Your data never leaves your computer.**
+**Your case data never leaves your computer.**
 
-- Runs 100% locally in your browser — no servers, no cloud, no internet connection needed
-- No data is stored, transmitted, or logged anywhere
+- All calculations run locally in your browser — no servers, no cloud
+- No case data is stored, transmitted, or logged anywhere
 - No cookies, no tracking, no analytics
 - No login required
 - When you close the tab, the data is gone
-- Safe to use on government networks and air-gapped systems
 
-The entire application is a single HTML file you can inspect yourself. There is no hidden code, no external data calls, and no background processes.
+The entire application is a single HTML file you can inspect yourself. The only network requests it makes are to cdnjs.cloudflare.com to load the standard React and Babel code libraries when the page opens — no tenant or calculation data is ever sent. (This also means the page needs an internet connection to load; it is not suitable for fully air-gapped systems as-is.)
 
 ---
 
@@ -114,7 +116,7 @@ Works in any modern browser:
 - ✅ Chrome, Edge, Firefox, Safari
 - ✅ Windows, Mac, Linux, Chromebook
 - ✅ Tablets and phones (responsive layout)
-- ✅ Works offline — no internet required
+- ⚠ Needs an internet connection to load (React/Babel libraries come from a CDN); case data still never leaves the browser
 - ✅ No software installation needed
 - ✅ No admin/IT permissions required
 
